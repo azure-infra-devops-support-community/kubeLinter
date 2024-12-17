@@ -10,7 +10,7 @@ variables:
   value: $(System.DefaultWorkingDirectory)/helm-chart-sample
 
 pool:
-  vmImage: ubuntu-latest
+  name: linux-agentpool
 
 steps:
 
