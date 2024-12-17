@@ -12,7 +12,7 @@ variables:
   value: $(System.DefaultWorkingDirectory)/reports
 
 pool:
-  name: linux-agentpool
+  name: linux-agent-pool
 
 steps:
 
