@@ -9,44 +9,31 @@ variables:
 - name: chart_folder
   value: $(System.DefaultWorkingDirectory)/helm-chart-sample
 - name: report_folder
-  value: $(System.DefaultWorkingDirectory)/reports
+  value: $(System.DefaultWorkingDirectory)/test/reports
 
 pool:
   name: linux-agent-pool
 
 steps:
 
-# Step 1: Run KubeLinter for Kubernetes YAML Files and Save Output
+# Step 1: Run KubeLinter for Kubernetes YAML Files and Save Output as SARIF
 - script: |
       mkdir -p $(report_folder)
       docker run -v $(yaml_folder):/yaml stackrox/kube-linter lint /yaml --format sarif > $(report_folder)/kube-linter-yaml.sarif
   displayName: Run Static KubeLinter Code Analysis for Kubernetes YAML
   continueOnError: true
 
-# Step 2: Run KubeLinter for Helm Charts and Save Output
+# Step 2: Run KubeLinter for Helm Charts and Save Output as SARIF
 - script: |
       docker run -v $(chart_folder):/chart stackrox/kube-linter lint /chart --format sarif > $(report_folder)/kube-linter-helm.sarif
   displayName: Run KubeLinter Static Code Analysis for Helm Chart
   continueOnError: true
 
-# Step 3: Publish Reports as Pipeline Artifacts
-- task: PublishPipelineArtifact@1
-  displayName: Publish KubeLinter Reports
+# Step 3: Publish Code Analysis Reports as Build Artifacts (For Scans Tab)
+- task: PublishBuildArtifacts@1
+  name: PublishCodeAnalysisReports
+  displayName: Publish Code Analysis Reports
+  condition: always()
   inputs:
-    targetPath: $(report_folder)
-    artifactName: KubeLinter-Reports
-
-# Step 4: Publish Reports for Code Scanning Extension (Optional)
-- task: PublishSarifResult@2
-  displayName: Publish KubeLinter SARIF Results
-  inputs:
-    sarifFile: '$(report_folder)/kube-linter-yaml.sarif'
-    artifactName: 'KubeLinter-YAML-Scan'
-    toolName: 'KubeLinter'
-
-- task: PublishSarifResult@2
-  displayName: Publish KubeLinter SARIF Results for Helm
-  inputs:
-    sarifFile: '$(report_folder)/kube-linter-helm.sarif'
-    artifactName: 'KubeLinter-Helm-Scan'
-    toolName: 'KubeLinter'
+    pathToPublish: $(report_folder)
+    artifactName: CodeAnalysisLogs  # Required to show up in the Scans tab
