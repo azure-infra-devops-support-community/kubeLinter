@@ -8,18 +8,45 @@ variables:
   value: $(System.DefaultWorkingDirectory)/k8s-yaml-sample
 - name: chart_folder
   value: $(System.DefaultWorkingDirectory)/helm-chart-sample
+- name: report_folder
+  value: $(System.DefaultWorkingDirectory)/reports
 
 pool:
   name: linux-agentpool
 
 steps:
 
+# Step 1: Run KubeLinter for Kubernetes YAML Files and Save Output
 - script: |
-      docker run -v $(yaml_folder):/yaml stackrox/kube-linter lint /yaml
-  displayName: Run Static KubeLinter Code analysis for Kubernetes YAML manifest files
+      mkdir -p $(report_folder)
+      docker run -v $(yaml_folder):/yaml stackrox/kube-linter lint /yaml --format sarif > $(report_folder)/kube-linter-yaml.sarif
+  displayName: Run Static KubeLinter Code Analysis for Kubernetes YAML
   continueOnError: true
-  
+
+# Step 2: Run KubeLinter for Helm Charts and Save Output
 - script: |
-      docker run -v $(chart_folder):/chart stackrox/kube-linter lint /chart
-  displayName: Run KubeLinter Static Code analysis for Helm Chart
+      docker run -v $(chart_folder):/chart stackrox/kube-linter lint /chart --format sarif > $(report_folder)/kube-linter-helm.sarif
+  displayName: Run KubeLinter Static Code Analysis for Helm Chart
   continueOnError: true
+
+# Step 3: Publish Reports as Pipeline Artifacts
+- task: PublishPipelineArtifact@1
+  displayName: Publish KubeLinter Reports
+  inputs:
+    targetPath: $(report_folder)
+    artifactName: KubeLinter-Reports
+
+# Step 4: Publish Reports for Code Scanning Extension (Optional)
+- task: PublishSarifResult@2
+  displayName: Publish KubeLinter SARIF Results
+  inputs:
+    sarifFile: '$(report_folder)/kube-linter-yaml.sarif'
+    artifactName: 'KubeLinter-YAML-Scan'
+    toolName: 'KubeLinter'
+
+- task: PublishSarifResult@2
+  displayName: Publish KubeLinter SARIF Results for Helm
+  inputs:
+    sarifFile: '$(report_folder)/kube-linter-helm.sarif'
+    artifactName: 'KubeLinter-Helm-Scan'
+    toolName: 'KubeLinter'
